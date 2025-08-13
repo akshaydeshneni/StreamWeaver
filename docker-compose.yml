@@ -1,0 +1,363 @@
+version: '3.8'
+
+# Defines a single bridge network for all services to communicate.
+networks:
+  data-pipeline-net:
+    driver: bridge
+
+# Defines named volumes for persistent data storage.
+volumes:
+  zookeeper_data:
+  kafka_data:
+  minio_data:
+  postgres_metastore_data:
+  postgres_superset_data:
+  postgres_airflow_data:
+  grafana_data:
+
+services:
+  # Zookeeper: Required for Kafka coordination.
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    container_name: zookeeper
+    networks:
+      - data-pipeline-net
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # Kafka: The message broker for our streaming data.
+  kafka:
+    image: confluentinc/cp-kafka:7.3.2
+    container_name: kafka
+    networks:
+      - data-pipeline-net
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  # Schema Registry: Manages and validates Avro schemas for our Kafka topics.
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.3.2
+    container_name: schema-registry
+    networks:
+      - data-pipeline-net
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kafka
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+  # MinIO: S3-compatible object storage for our data lake.
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: minio
+    networks:
+      - data-pipeline-net
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # MinIO Console
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # PostgreSQL for Hive Metastore: Stores metadata for Hive.
+  postgres-metastore-db:
+    image: postgres:13
+    container_name: postgres-metastore-db
+    networks:
+      - data-pipeline-net
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_metastore_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hivepassword
+
+  # Hive Metastore: Stores table metadata for Trino, enabling it to query data in MinIO.
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+    networks:
+      - data-pipeline-net
+    ports:
+      - "9083:9083"
+    depends_on:
+      - postgres-metastore-db
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: "postgres"
+      DB_URL: "jdbc:postgresql://postgres-metastore-db:5432/metastore"
+      DB_USER: "hive"
+      DB_PASS: "hivepassword"
+    command: /opt/hive/bin/hive --service metastore
+
+  # Trino: The query engine for our data lake.
+  trino-coordinator:
+    image: trinodb/trino:417
+    container_name: trino-coordinator
+    networks:
+      - data-pipeline-net
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog
+
+  # Flink Job Manager: Coordinates the Flink job execution.
+  jobmanager:
+    build:
+      context: ./flink_job
+    container_name: jobmanager
+    networks:
+      - data-pipeline-net
+    ports:
+      - "8082:8081" # Flink UI
+      - "9249:9249" # Metrics
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.bind-port: 8081
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+    depends_on:
+      - kafka
+      - hive-metastore
+
+  # Flink Task Manager: Executes the tasks of the Flink job.
+  taskmanager:
+    build:
+      context: ./flink_job
+    container_name: taskmanager
+    networks:
+      - data-pipeline-net
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+    depends_on:
+      - jobmanager
+
+  # Data Producer: Runs the Python script to fetch data and send it to Kafka.
+  producer:
+    build:
+      context: ./producer
+    container_name: producer
+    networks:
+      - data-pipeline-net
+    volumes:
+      - ./schemas:/app/schemas
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - APCA_API_KEY_ID=PKETV0TBUCKUDJTAJ9L7
+      - APCA_API_SECRET_KEY=9ohgWu8DETd1AC6TMYS0WgM7xvNhLktzvQWd90FY
+    depends_on:
+      - kafka
+      - schema-registry
+
+  # dbt: The data transformation tool, triggered by Airflow.
+  dbt:
+    build:
+      context: ./dbt
+    container_name: dbt
+    networks:
+      - data-pipeline-net
+    volumes:
+      - ./dbt:/usr/app
+    command: ["sleep", "infinity"]
+    environment:
+      - DBT_PROFILES_DIR=/usr/app
+    depends_on:
+      - trino-coordinator
+
+  # Prometheus: Collects metrics from Flink and other services.
+  prometheus:
+    image: prom/prometheus:v2.44.0
+    container_name: prometheus
+    networks:
+      - data-pipeline-net
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  # Grafana: Visualizes metrics from Prometheus.
+  grafana:
+    image: grafana/grafana:9.5.1
+    container_name: grafana
+    networks:
+      - data-pipeline-net
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/:/etc/grafana/provisioning/
+    depends_on:
+      - prometheus
+
+  # PostgreSQL for Superset: Stores metadata for Superset.
+  postgres-superset-db:
+    image: postgres:13
+    container_name: postgres-superset-db
+    networks:
+      - data-pipeline-net
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_superset_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: superset
+      POSTGRES_USER: superset
+      POSTGRES_PASSWORD: supersetpassword
+
+  # Superset: The data visualization and BI tool.
+  superset:
+    image: apache/superset:latest
+    container_name: superset
+    networks:
+      - data-pipeline-net
+    ports:
+      - "8088:8088"
+    depends_on:
+      - postgres-superset-db
+      - trino-coordinator
+    environment:
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
+      MAPBOX_API_KEY: ''
+      SUPERSET_SECRET_KEY: 'a-long-random-secret-key'
+      SQLALCHEMY_DATABASE_URI: 'postgresql://superset:supersetpassword@postgres-superset-db:5432/superset'
+      SUPERSET_LOAD_EXAMPLES: 'no'
+    command: >
+      bash -c "superset db upgrade &&
+               superset init &&
+               superset set_database_uri -d Trino -u trino://trino@trino-coordinator:8080 &&
+               gunicorn --bind 0.0.0.0:8088 --workers 4 --timeout 120 'superset.app:create_app()'"
+
+  # PostgreSQL for Airflow: Stores metadata for Airflow.
+  postgres-airflow-db:
+    image: postgres:13
+    container_name: postgres-airflow-db
+    networks:
+      - data-pipeline-net
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_airflow_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+
+  # Redis: The message broker for Airflow.
+  redis:
+    image: redis:latest
+    container_name: redis
+    networks:
+      - data-pipeline-net
+    ports:
+      - "6379:6379"
+
+  # Airflow Init: Initializes the Airflow database.
+  airflow-init:
+    image: apache/airflow:2.6.1
+    container_name: airflow-init
+    networks:
+      - data-pipeline-net
+    env_file:
+      - ./airflow/.env
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        chown -R "${AIRFLOW_UID}:0" .
+        exec /entrypoint airflow db init
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    depends_on:
+      - redis
+      - postgres-airflow-db
+
+  # Airflow Webserver: The Airflow UI.
+  airflow-webserver:
+    image: apache/airflow:2.6.1
+    container_name: airflow-webserver
+    restart: always
+    networks:
+      - data-pipeline-net
+    ports:
+      - "8083:8080"
+    env_file:
+      - ./airflow/.env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - airflow-init
+
+  # Airflow Scheduler: The core Airflow component for scheduling and running tasks.
+  airflow-scheduler:
+    image: apache/airflow:2.6.1
+    container_name: airflow-scheduler
+    restart: always
+    networks:
+      - data-pipeline-net
+    env_file:
+      - ./airflow/.env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - airflow-init

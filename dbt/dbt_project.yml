@@ -1,0 +1,27 @@
+name: 'stock_data_pipeline'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which folder dbt will look for models in.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"  # directory which will store compiled SQL files
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+# Configuring models
+# Full documentation: https://docs.getdbt.com/docs/configuring-models
+models:
+  stock_data_pipeline:
+    # Config indicated by + and applies to all files under models/
+    # The bronze layer is just sources, so no materialization needed here.
+    silver:
+      +materialized: table
+    gold:
+      +materialized: table

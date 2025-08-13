@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: raw_data
+    description: "Source data from the data lake, ingested by Flink."
+    database: hive # This is the catalog in Trino
+    schema: default # The schema where Flink writes the delta table
+    tables:
+      - name: raw_stock_trades
+        description: "Raw stock trades data from the Delta Lake table."
+        columns:
+          - name: symbol
+            description: "The stock ticker symbol."
+          - name: price
+            description: "The price of the stock trade."
+          - name: volume
+            description: "The volume of the stock trade."
+          - name: event_time
+            description: "The timestamp of the trade event."
+            tests:
+              - not_null
+      - name: iceberg_raw_stock_trades
+        description: "Raw stock trades data from the Iceberg table."
+        identifier: "bronze.raw_stock_trades" # Using the iceberg catalog and schema
+        catalog: iceberg_catalog
+        columns:
+          - name: symbol
+          - name: price
+          - name: volume
+          - name: event_time
+            tests:
+              - not_null

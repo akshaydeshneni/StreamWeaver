@@ -1,0 +1,11 @@
+default:
+  outputs:
+    dev:
+      type: trino
+      host: trino-coordinator
+      port: 8080
+      user: dbt
+      database: hive
+      schema: default # This will be overridden in the models
+      threads: 1
+  target: dev
