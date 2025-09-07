@@ -1,5 +1,5 @@
 name: 'stock_data_pipeline'
-version: '1.0.0'
+version: '1.0.1'
 config-version: 2
 
 # This setting configures which folder dbt will look for models in.
