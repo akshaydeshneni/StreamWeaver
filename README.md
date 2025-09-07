@@ -81,7 +81,7 @@ This guide explains how to run the included stock market data pipeline example o
 
 ### Step 1: Prerequisites
 
-*   **Docker and Docker Compose:** Ensure you have the latest versions installed.
+*   **Docker and Docker Compose:** Ensure you have the latest versions installed!
 *   **Resources:** At least 8GB of RAM is recommended, as the environment runs over 15 services.
 
 ### Step 2: Configuration (One-Time Setup)

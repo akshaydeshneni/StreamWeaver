@@ -5,7 +5,7 @@ networks:
   data-pipeline-net:
     driver: bridge
 
-# Defines named volumes for persistent data storage.
+# Define named volumes for persistent data storage.
 volumes:
   zookeeper_data:
   kafka_data:

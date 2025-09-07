@@ -1,4 +1,4 @@
-# Use a Flink image as the base
+# Use a Flink apache-flink==1.17.1 image as the base
 FROM flink:1.17.1-scala_2.12-java11
 
 # Switch to root user to install packages

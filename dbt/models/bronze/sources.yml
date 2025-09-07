@@ -7,7 +7,7 @@ sources:
     schema: default # The schema where Flink writes the delta table
     tables:
       - name: raw_stock_trades
-        description: "Raw stock trades data from the Delta Lake table."
+        description: "Raw stock data from the Delta Lake table."
         columns:
           - name: symbol
             description: "The stock ticker symbol."
