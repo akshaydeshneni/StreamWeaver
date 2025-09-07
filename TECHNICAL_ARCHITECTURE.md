@@ -95,7 +95,7 @@ The `docker-compose.yml` file is the entry point for local development.
 
 1.  **Starting the environment:** `docker-compose up -d` starts all services.
 2.  **Making code changes:**
-    *   The `producer`, `dbt`, and `airflow/dags` directories are mounted as volumes into their respective containers. This means you can edit the Python and SQL files on your local machine, and the changes will be reflected inside the containers automatically.
+    *   The `producer`, dbt, and `airflow/dags` directories are mounted as volumes into their respective containers. This means you can edit the Python and SQL files on your local machine, and the changes will be reflected inside the containers automatically.
     *   For the Flink job, you will need to restart the Flink cluster (`docker-compose restart jobmanager taskmanager`) to pick up changes in `flink_job/main.py` because the job is submitted at startup. A better approach for active development is to `docker exec` into the `jobmanager` container and submit the job manually with `flink run`.
 3.  **Debugging:** Use `docker-compose logs -f <service_name>` to view the logs for a specific service (e.g., `docker-compose logs -f producer`).
 
