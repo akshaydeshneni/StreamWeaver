@@ -8,7 +8,7 @@ from airflow.operators.bash import BashOperator
 # This is the definition of the Airflow DAG (Directed Acyclic Graph)
 # which orchestrates our data pipeline.
 with DAG(
-    dag_id="stock_data_pipeline",
+    dag_id="stock_market_data_pipeline",
     start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
     catchup=False,
     schedule="@daily",
