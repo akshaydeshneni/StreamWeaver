@@ -8,7 +8,7 @@ from uuid import uuid4
 from confluent_kafka import SerializingProducer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
-import alpaca_trade_api as tradeapi
+import alpaca_trade_api as tradeapi #Alpaca API
 
 # --- Configuration ---
 # This section loads all configuration from environment variables.
