@@ -8,4 +8,4 @@ scrape_configs:
 
   - job_name: 'flink'
     static_configs:
-      - targets: ['jobmanager:9249'] # Default Flink metrics port
+      - targets: ['jobmanager:9249'] # Default Flink port for metrics
