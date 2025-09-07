@@ -5,7 +5,7 @@ import json
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # --- Configuration ---
-# Load all configuration from environment variables for flexibility.
+# Load configuration from environment variables for flexibility.
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 KAFKA_BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 SCHEMA_REGISTRY_URL = os.environ.get("SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
