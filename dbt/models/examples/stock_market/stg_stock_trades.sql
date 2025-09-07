@@ -1,4 +1,4 @@
--- This dbt model represents the "Silver" layer of our Medallion Architecture.
+-- This dbt model represents the Silver layer of our Medallion Architecture.
 -- Its purpose is to take the raw data from the Bronze layer, clean it,
 -- and prepare it for further analysis and aggregation in the Gold layer.
 
