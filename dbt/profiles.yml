@@ -6,6 +6,6 @@ default:
       port: 8080
       user: dbt
       database: hive
-      schema: default # This will be overridden in the models
+      schema: default # overridden in models
       threads: 1
   target: dev
