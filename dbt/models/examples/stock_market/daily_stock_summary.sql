@@ -1,4 +1,4 @@
--- This dbt model represents the "Gold" layer of our Medallion Architecture.
+-- This dbt model represents the Gold layer of our Medallion Architecture.
 -- It builds on the cleaned data from the Silver layer (`stg_stock_trades`)
 -- to create a business-ready, aggregated table. In this case, we are creating
 -- a daily summary for each stock symbol.
