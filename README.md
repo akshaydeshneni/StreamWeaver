@@ -1,3 +1,17 @@
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-017CEE?style=for-the-badge&logo=apache-airflow&logoColor=white)
+![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?style=for-the-badge&logo=apache-kafka&logoColor=white)
+![Apache Flink](https://img.shields.io/badge/Apache_Flink-E65261?style=for-the-badge&logo=apache-flink&logoColor=white)
+![dbt](https://img.shields.io/badge/dbt-FF694B?style=for-the-badge&logo=dbt&logoColor=white)
+![Apache Trino](https://img.shields.io/badge/Apache_Trino-00824E?style=for-the-badge&logo=trino&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-525F66?style=for-the-badge&logo=minio&logoColor=white)
+![Apache Superset](https://img.shields.io/badge/Apache_Superset-31C99F?style=for-the-badge&logo=apache-superset&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
+![Apache Iceberg](https://img.shields.io/badge/Apache_Iceberg-0063FF?style=for-the-badge&logo=apache-iceberg&logoColor=white)
+![Delta Lake](https://img.shields.io/badge/Delta_Lake-2196F3?style=for-the-badge&logo=delta-lake&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+
 # Generic Real-Time Data Pipeline Framework
 
 This project provides a complete, reusable, end-to-end framework for building real-time data pipelines. The entire environment is containerized using Docker and orchestrated with Airflow. It comes with a working example of a stock trade data pipeline to demonstrate its capabilities.
